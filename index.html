@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Scoreboard – HUD Count-Up + 3 Themes</title>
+<style>
+  :root{
+    /* mặc định: nền đen */
+    --bg:#0b0b0c; --panel:#101113; --panel-border:#2a2b2e; --fg:#ededed;
+    --teamL:#ffc107; --teamR:#ffc107;           /* màu số P1/P2 */
+    --active:#5aa9ff; --chip:#191b1f; --ok:#2ecc71;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:Inter,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+  .wrap{max-width:1400px;margin:0 auto;padding:12px}
+
+  /* ========== TOP BAR ========== */
+  .toolbar{display:flex;align-items:center;gap:12px;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap}
+  .leftPad{width:120px} /* chừa khoảng cân giữa */
+  .hud{display:flex;align-items:center;gap:10px;justify-content:center;min-width:260px}
+  .hudChip{display:inline-flex;align-items:center;gap:8px;background:#15171a;border:1px solid var(--panel-border);color:var(--fg);padding:8px 12px;border-radius:12px}
+  .hudTime{font-weight:900;letter-spacing:.04em;min-width:90px;text-align:center}
+  .hudBtns{display:flex;gap:8px}
+  .chipBtn{background:#15171a;border:1px solid var(--panel-border);color:var(--fg);padding:8px 12px;border-radius:10px;cursor:pointer}
+  .chipBtn:active{transform:scale(.97)}
+  .rightTools{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .select{background:#15171a;border:1px solid var(--panel-border);color:var(--fg);padding:8px 12px;border-radius:10px}
+
+  /* ========== 3 CỘT ========== */
+  .grid{display:grid;grid-template-columns:35% 30% 35%;gap:26px;align-items:stretch;height:78vh}
+  .col{display:flex;flex-direction:column;min-height:0}
+  .colFill{flex:1;min-height:0;display:flex;flex-direction:column}
+  .centerFill{flex:1;min-height:0;display:flex;flex-direction:column;gap:12px}
+  .raceWrap{flex:57 1 0%;display:flex;flex-direction:column}
+  .timerWrap{flex:43 1 0%;display:flex;flex-direction:column}
+.title{
+  font-size:13px;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:#cfd2d6;
+  text-align:center;
+  margin:2px 0 8px;
+}
+#nameL, #nameR {
+  font-size: 28px;     /* 👈 kích thước chữ */
+  font-weight: 700;    /* 👈 chữ đậm hơn */
+}
+
+
+  .card{background:var(--panel);border:1px solid var(--panel-border);border-radius:26px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center;height:100%;box-shadow:inset 0 0 0 1px rgba(255,255,255,.02)}
+  .flipLine{position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(255,255,255,.06)}
+  .num{font-weight:900;line-height:1;text-shadow:0 2px 0 rgba(0,0,0,.45);user-select:none}
+  .num.team.left{color:var(--teamL)}
+  .num.team.right{color:var(--teamR)}
+ .num.team {
+  font-size: clamp(200px, 30vw, 400px);  /* lớn hơn */
+}
+  .num.set{color:#e3e4e6;opacity:.95;font-size:clamp(83px,10.4vw,156px);cursor:pointer}
+
+  .controls{display:flex;gap:12px;justify-content:center;margin-top:14px}
+  .btn{width:64px;height:64px;background:#15171a;border:1px solid var(--panel-border);color:#e9e9e9;font-size:28px;font-weight:700;border-radius:14px;box-shadow:inset 0 -2px 0 rgba(0,0,0,.45);cursor:pointer}
+  .btn:active{transform:scale(.97)}
+  .btn.small{width:56px;height:56px;font-size:26px}
+  .raceSide{position:absolute;top:50%;transform:translateY(-50%)}
+  .raceMinus{left:16px} .racePlus{right:16px}
+
+  /* ===== TIME CARD ===== */
+  .card.timer{flex-direction:column;padding:12px 16px;gap:12px}
+  .topRow{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+  .modeToggle{background:var(--chip);border:1px solid var(--panel-border);border-radius:12px;display:flex;overflow:hidden}
+  .modeToggle button{padding:8px 10px;color:#dfe3e7;background:transparent;border:0;cursor:pointer}
+  .modeToggle button.active{background:#1e2228;color:#fff;outline:2px solid var(--active)}
+
+  .timerRow{display:flex;align-items:center;justify-content:center;gap:14px;position:relative}
+  .timerIcon{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;background:#202228;color:#dfe2e6}
+  .timerScreen{font-weight:900;font-size:clamp(46px,6.8vw,86px);letter-spacing:.06em;color:#eceff2;cursor:pointer}
+.pencilBig {
+  position: absolute;
+  right: -8px;
+  top: -8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #000000;        /* ✅ Màu nền bút chì */
+  color: #fff;                /* ✅ Màu biểu tượng ✎ */
+  border: 1px solid #2a2b2e;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 4px rgba(0,0,0,0.3);
+}
+
+  .timerCtrls{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+  .pill{display:inline-flex;align-items:center;gap:8px;background:#191b1f;border:1px solid var(--panel-border);color:#e9e9e9;padding:10px 14px;border-radius:14px;cursor:pointer}
+  .pill .ico{width:20px;height:20px;display:inline-grid;place-items:center;background:#2b2d33;border-radius:50%}
+
+  .presetRow{display:flex;gap:16px;justify-content:center;margin-top:auto;flex-wrap:wrap}
+  .preset{display:inline-flex;align-items:center;gap:10px;background:#191b1f;border:1px solid var(--panel-border);padding:10px 18px;border-radius:16px;cursor:pointer;position:relative;color:#e6e9ed}
+  .preset .sw{width:20px;height:20px;display:inline-grid;place-items:center;background:#22252b;border-radius:50%}
+  .preset.active{outline:3px solid var(--active);box-shadow:0 0 0 3px rgba(90,169,255,.15);border-color:#2f78c8}
+  .preset time{font-weight:800;letter-spacing:.06em}
+  .preset .pencil{position:absolute;right:-10px;top:-10px;width:22px;height:22px;border-radius:50%;display:grid;place-items:center;background:#000;border:1px solid #333;cursor:pointer}
+
+  .hint{font-size:12px;color:#aab1b9;text-align:center;margin-top:4px}
+
+  /* Winner popup + confetti */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:60}
+  .modal.show{display:flex}
+  .box{background:#111;border:1px solid #333;padding:22px;border-radius:16px;min-width:320px;max-width:92%;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+  .box h2{margin:0 0 8px;font-size:42px;color:#28ffc5;letter-spacing:.05em}
+  .box p{margin:8px 0 14px;color:#d7dadf}
+  .row{display:flex;gap:12px;justify-content:center}
+  .ok{background:var(--ok);border:none;color:#fff;padding:10px 16px;border-radius:12px;font-weight:700;cursor:pointer}
+  .ghost{background:#191b1f;border:1px solid #34363a;color:#e9e9e9;padding:10px 16px;border-radius:12px;cursor:pointer}
+  canvas#fx{position:fixed;inset:0;pointer-events:none;z-index:55}
+
+  /* Mobile dọc */
+  @media (max-width:940px) and (orientation:portrait){
+    .grid{grid-template-columns:1fr 1fr 1fr; gap:10px; height:auto}
+    .card{border-radius:20px}
+    .num.team{font-size:clamp(60px,13vw,125px)}
+    .num.set{font-size:clamp(42px,9.8vw,83px)}
+    .btn{width:46px;height:46px;font-size:22px;border-radius:10px}
+    .btn.small{width:44px;height:44px;font-size:22px}
+  }
+/* ===== Tăng tương phản khi nền trắng ===== */
+body[data-theme="white"] .card{
+  background:#ffffff;
+  border-color:#cfd4da;
+  /* đổ bóng nhẹ + viền trong cho nổi khối */
+  box-shadow: 0 6px 24px rgba(0,0,0,.08), inset 0 0 0 1px #e7ebef;
+}
+body[data-theme="white"] .flipLine{ background:rgba(0,0,0,.08); }
+
+body[data-theme="white"] .title{ color:#4a4f55; }
+body[data-theme="white"] .timerIcon{ background:#e9ecf2; color:#111; }
+body[data-theme="white"] .timerScreen{ color:#111; }
+
+/* số 2 bên đậm & rõ hơn trên nền trắng */
+body[data-theme="white"] .num.team{
+  color:#111;                /* đã set qua biến, ở đây đảm bảo tương phản */
+  text-shadow:0 2px 0 rgba(0,0,0,.15);
+}
+body[data-theme="white"] .num.set{ color:#222; opacity:1; }
+
+/* nút bấm & chip dùng nền tối – chữ trắng để nổi bật */
+body[data-theme="white"] .btn,
+body[data-theme="white"] .chipBtn,
+body[data-theme="white"] .select,
+body[data-theme="white"] .pill{
+  background:#0f1115;
+  color:#fff;
+  border-color:#222831;
+}
+body[data-theme="white"] .preset{
+  background:#0f1115;
+  border-color:#222831;
+  color:#eaeff7;
+}
+body[data-theme="white"] .preset .sw{ background:#1b1f27; }
+body[data-theme="white"] .modeToggle{
+  background:#eef2f6;
+  border-color:#d0d6dd;
+}
+body[data-theme="white"] .modeToggle button{ color:#222; }
+body[data-theme="white"] .modeToggle button.active{
+  background:#0f1115; color:#fff; outline-color:#4fb3ff;
+}
+
+/* HUD đếm xuôi trên thanh trên cùng */
+body[data-theme="white"] .hudChip{
+  background:#0f1115; color:#fff; border-color:#222831;
+}
+
+</style>
+</head>
+<body>
+  <canvas id="fx"></canvas>
+
+  <!-- ===== TOP BAR với HUD đếm xuôi ở giữa ===== -->
+  <div class="wrap">
+    <div class="toolbar">
+      <div class="leftPad"></div>
+
+      <div class="hud" aria-label="Đồng hồ đếm xuôi (HUD)">
+        <div class="hudChip">⏱ <span id="hudTime" class="hudTime">00:00</span></div>
+        <div class="hudBtns">
+          <button id="hudStart" class="chipBtn">Bắt đầu</button>
+          <button id="hudReset" class="chipBtn">Reset</button>
+        </div>
+      </div>
+
+      <div class="rightTools">
+        <label for="themeSel">Nền:</label>
+        <select id="themeSel" class="select">
+          <option value="dark">Đen</option>
+          <option value="white">Trắng</option>
+          <option value="dark-rb">Nền đen (P1 đỏ / P2 xanh)</option>
+        </select>
+        <button class="chipBtn" id="fs">⛶ Toàn màn hình</button>
+        <button class="chipBtn" id="resetAll">↺ Reset điểm</button>
+      </div>
+    </div>
+
+    <!-- ===== 3 CỘT ===== -->
+    <div class="grid">
+      <!-- LEFT -->
+      <div class="col">
+        <div class="title" contenteditable="true" id="nameL">PLAYER 1</div>
+        <div class="colFill">
+          <div class="card">
+            <div class="flipLine"></div>
+            <div class="num team left" id="scoreL" title="Bấm để nhập">0</div>
+          </div>
+        </div>
+        <div class="controls"><button class="btn" id="minusL">−</button><button class="btn" id="plusL">＋</button></div>
+      </div>
+
+      <!-- CENTER -->
+      <div class="col">
+        <div class="centerFill">
+          <div class="raceWrap">
+            <div class="title">RACE TO</div>
+            <div class="card">
+              <div class="flipLine"></div>
+              <button class="btn small raceSide raceMinus" id="minusRace">−</button>
+              <div class="num set" id="raceTo" title="Bấm để nhập">5</div>
+              <button class="btn small raceSide racePlus" id="plusRace">＋</button>
+            </div>
+          </div>
+
+          <div class="timerWrap">
+            <div class="title">TIME</div>
+            <div class="card timer">
+              <div class="topRow">
+                <div class="modeToggle">
+                  <button id="modeDown" class="active">Đếm ngược</button>
+                  <button id="modeUp">Đếm xuôi</button>
+                </div>
+              </div>
+
+              <div class="timerRow">
+                <div class="timerIcon">⏱</div>
+                <div class="timerScreen" id="screen" title="Bấm để chạy theo preset đang chọn (ngược) / chạy (xuôi)">00:30</div>
+                <button class="pencilBig" id="editMain" title="Chỉnh thời gian đồng hồ">✎</button>
+              </div>
+
+              <div class="timerCtrls">
+                <button class="pill" id="start"><span class="ico">▶</span><span>Start</span></button>
+                <button class="pill" id="stop"><span class="ico">⏸</span><span>Stop</span></button>
+                <button class="pill" id="reset"><span class="ico">↺</span><span>Reset</span></button>
+              </div>
+
+              <div class="presetRow">
+                <button class="preset active" id="preset1" type="button">
+                  <span class="sw">⏱</span><time id="p1">01:00</time>
+                  <span class="pencil" data-edit="p1" title="Sửa preset">✎</span>
+                </button>
+                <button class="preset" id="preset2" type="button">
+                  <span class="sw">⏱</span><time id="p2">00:30</time>
+                  <span class="pencil" data-edit="p2" title="Sửa preset">✎</span>
+                </button>
+              </div>
+
+              <div class="hint">Bấm preset để <b>đặt & chạy ngay</b> (ngược). Chỉ bấm <b>✎</b> mới sửa preset. Với <b>Đếm xuôi</b>, đồng hồ chạy từ 00:00 lên.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT -->
+      <div class="col">
+        <div class="title" contenteditable="true" id="nameR">PLAYER 2</div>
+        <div class="colFill">
+          <div class="card">
+            <div class="flipLine"></div>
+            <div class="num team right" id="scoreR" title="Bấm để nhập">0</div>
+          </div>
+        </div>
+        <div class="controls"><button class="btn" id="minusR">−</button><button class="btn" id="plusR">＋</button></div>
+      </div>
+    </div>
+
+    <div class="hint" style="text-align:center;margin-top:6px">
+      Phím tắt: A/Z (P1) · K/M (P2) · [/] (Race −/+) · F Fullscreen · R Reset điểm · T Start/Pause timer
+    </div>
+  </div>
+
+  <!-- Winner popup -->
+  <div class="modal" id="winModal">
+    <div class="box">
+      <h2 id="winTitle">PLAYER 1 WIN</h2>
+      <p id="winScore">0 – 0</p>
+      <p>Nhấn <b>Reset</b> để bắt đầu lại</p>
+      <div class="row">
+        <button class="ok" id="winOk">OK</button>
+        <button class="ghost" id="winReset">Reset</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(()=> {
+  const $=id=>document.getElementById(id);
+
+  /* ========== THEME (3 lựa chọn) ========== */
+  const themeSel = $("themeSel");
+ function applyTheme(key){
+  // gắn data-theme để các CSS override theo theme hoạt động
+  document.body.setAttribute('data-theme', key);
+
+  // set biến màu cho 3 theme
+  switch(key){
+    case "white": // nền trắng, chữ/số tối rõ
+      setVars({
+        bg:"#ffffff", panel:"#ffffff", fg:"#111",
+        teamL:"#111", teamR:"#111", border:"#cfd4da"
+      });
+      break;
+    case "dark-rb": // nền đen – P1 đỏ, P2 xanh dương
+      setVars({
+        bg:"#0b0b0c", panel:"#101113", fg:"#ededed",
+        teamL:"#ff4141", teamR:"#4da3ff", border:"#2a2b2e"
+      });
+      break;
+    default: // nền đen – vàng
+      setVars({
+        bg:"#0b0b0c", panel:"#101113", fg:"#ededed",
+        teamL:"#ffc107", teamR:"#ffc107", border:"#2a2b2e"
+      });
+  }
+  localStorage.setItem("sb-theme-3", key);
+}
+
+  function setVars(o){
+    const r=document.documentElement.style;
+    r.setProperty("--bg", o.bg);
+    r.setProperty("--panel", o.panel);
+    r.setProperty("--fg", o.fg);
+    r.setProperty("--teamL", o.teamL);
+    r.setProperty("--teamR", o.teamR);
+    r.setProperty("--panel-border", o.border);
+  }
+  (function initTheme(){
+    const k=localStorage.getItem("sb-theme-3")||"dark";
+    themeSel.value = k; applyTheme(k);
+  })();
+  themeSel.addEventListener("change",e=>applyTheme(e.target.value));
+
+  /* ========== FULLSCREEN + RESET TỔNG ========== */
+  $("fs").onclick=()=>{ if(!document.fullscreenElement) document.documentElement.requestFullscreen?.(); else document.exitFullscreen?.(); };
+  $("resetAll").onclick=()=>{ setTxt(scoreL,0); setTxt(scoreR,0); hideWin(); };
+
+  /* ========== ĐIỂM & RACE TO ========== */
+  const scoreL=$("scoreL"), scoreR=$("scoreR"), raceTo=$("raceTo");
+  const toInt=v=>Math.max(0,parseInt(String(v||"0"),10)||0);
+  const setTxt=(el,v)=>{ el.textContent=String(Math.max(0,v|0)); checkWinner(); };
+
+  $("plusL").onclick=()=> setTxt(scoreL, toInt(scoreL.textContent)+1);
+  $("minusL").onclick=()=> setTxt(scoreL, Math.max(0,toInt(scoreL.textContent)-1));
+  $("plusR").onclick=()=> setTxt(scoreR, toInt(scoreR.textContent)+1);
+  $("minusR").onclick=()=> setTxt(scoreR, Math.max(0,toInt(scoreR.textContent)-1));
+  $("plusRace").onclick=()=> setTxt(raceTo, toInt(raceTo.textContent)+1);
+  $("minusRace").onclick=()=> setTxt(raceTo, Math.max(0,toInt(raceTo.textContent)-1));
+  scoreL.onclick=()=>editNum(scoreL,"Nhập điểm PLAYER 1:");
+  scoreR.onclick=()=>editNum(scoreR,"Nhập điểm PLAYER 2:");
+  raceTo.onclick=()=>editNum(raceTo,"Nhập mục tiêu RACE TO:");
+  function editNum(el,msg){ const v=prompt(msg, el.textContent); if(v!=null){ const n=parseInt(v,10); if(Number.isFinite(n)&&n>=0) setTxt(el,n); } }
+
+  /* ========== TIMER CHÍNH (ở giữa) – giữ nguyên logic v10.3 ========== */
+  const modeDown=$("modeDown"), modeUp=$("modeUp");
+  const screen=$("screen");
+  const startBtn=$("start"), stopBtn=$("stop"), resetBtn=$("reset");
+  const p1=$("p1"), p2=$("p2");
+  const preset1=$("preset1"), preset2=$("preset2");
+
+  let mode="down"; // 'down' | 'up'
+  let total=30, left=total, running=false, raf=null, last=0, startAt=0;
+
+  const fmt=t=>{t=Math.max(0,Math.round(t));const m=String(Math.floor(t/60)).padStart(2,"0");const s=String(t%60).padStart(2,"0");return `${m}:${s}`;};
+  const render=()=>{ screen.textContent=(mode==="down"?fmt(left):fmt(left)); };
+
+  function parseFlexible(input){
+    if(input==null) return null;
+    let s=String(input).trim().toLowerCase().replace(/,/g,":").replace(/\s+/g,"");
+    const ms=/^(\d+)(m|min)?(?:(\d+)(s|sec|s))?$/.exec(s);
+    if(ms && (ms[2]||ms[4])){ const m=parseInt(ms[1]||"0",10), ss=parseInt(ms[3]||"0",10); if(ss>=60) return null; return m*60+ss; }
+    s=s.replace(/\./g,":"); if(/^\d+:\d{1,2}$/.test(s)){ const [m,sec]=s.split(":"); const mm=parseInt(m,10), ss=parseInt(sec,10); if(ss>=60) return null; return mm*60+ss; }
+    if(/^\d+$/.test(s)) return parseInt(s,10);
+    return null;
+  }
+
+  function cancel(){ if(raf) cancelAnimationFrame(raf); raf=null; }
+  function loop(now){
+    if(!running) return;
+    const dt=(now-last)/1000; last=now;
+    if(mode==="down"){
+      left=Math.max(0,left-dt);
+      if(left<=0){ running=false; left=0; render(); timeUpSignal(); return; }
+    }else{
+      left=(now-startAt)/1000; // count up
+    }
+    render(); raf=requestAnimationFrame(loop);
+  }
+  function start(){ cancel(); running=true; last=performance.now(); if(mode==="down") raf=requestAnimationFrame(loop); else { startAt=performance.now()-left*1000; raf=requestAnimationFrame(loop);} }
+  function stop(){ running=false; cancel(); }
+  function reset(){ stop(); if(mode==="down"){ left=total; } else { left=0; } render(); }
+  function setTimeFromStr(str){ const sec=parseFlexible(str); if(sec==null){ alert("Định dạng không hợp lệ. Ví dụ: 01:30, 90, 1m30s"); return; } total=sec; left=sec; render(); }
+
+  modeDown.onclick=()=>{ mode="down"; modeDown.classList.add("active"); modeUp.classList.remove("active"); reset(); };
+  modeUp.onclick=()=>{ mode="up"; modeUp.classList.add("active"); modeDown.classList.remove("active"); reset(); };
+
+  screen.addEventListener("click", ()=>{ if(mode==="down"){ const chosen=(preset1.classList.contains("active")?p1.textContent:p2.textContent); setTimeFromStr(chosen); } start(); });
+  $("editMain").addEventListener("click",(e)=>{ e.stopPropagation(); const v=prompt("Đặt thời gian (mm:ss, 90, 1m30s...)", fmt(total)); if(v!=null) setTimeFromStr(v); });
+
+  startBtn.onclick=start; stopBtn.onclick=stop; resetBtn.onclick=reset;
+
+  function setActivePreset(id){ preset1.classList.toggle("active", id==="p1"); preset2.classList.toggle("active", id==="p2"); localStorage.setItem("sb-preset-active", id); }
+  preset1.addEventListener("click", e=>{ if(e.target.closest(".pencil")) return; setActivePreset("p1"); if(mode==="down"){ setTimeFromStr(p1.textContent); start(); }});
+  preset2.addEventListener("click", e=>{ if(e.target.closest(".pencil")) return; setActivePreset("p2"); if(mode==="down"){ setTimeFromStr(p2.textContent); start(); }});
+  document.querySelectorAll(".preset .pencil").forEach(el=>{
+    el.addEventListener("click", e=>{
+      e.stopPropagation();
+      const id=el.getAttribute("data-edit"); const target=$(id);
+      const v=prompt("Chỉnh preset (mm:ss, 90, 1m30s...)", target.textContent);
+      if(v!=null){ const sec=parseFlexible(v); if(sec==null){ alert("Định dạng không hợp lệ."); return;} target.textContent=fmt(sec); localStorage.setItem("sb-presets", JSON.stringify({p1:p1.textContent,p2:p2.textContent})); }
+    });
+  });
+  (function loadPresets(){ try{ const d=JSON.parse(localStorage.getItem("sb-presets")||"{}"); if(d.p1) p1.textContent=d.p1; if(d.p2) p2.textContent=d.p2; setActivePreset(localStorage.getItem("sb-preset-active")||"p1"); }catch(_){ } })();
+
+  /* ========== HUD COUNT-UP (trên giữa) ========== */
+  const hudTime=$("hudTime"), hudStart=$("hudStart"), hudReset=$("hudReset");
+  let hudRun=false, hudRAF=null, hudLast=0, hudElapsed=0;
+  const fmt2=t=>{t=Math.max(0,Math.round(t)); const m=String(Math.floor(t/60)).padStart(2,"0"); const s=String(t%60).padStart(2,"0"); return `${m}:${s}`;}
+  function hudRender(){ hudTime.textContent = fmt2(hudElapsed); }
+  function hudLoop(now){ if(!hudRun) return; const dt=(now-hudLast)/1000; hudLast=now; hudElapsed+=dt; hudRender(); hudRAF=requestAnimationFrame(hudLoop); }
+  function hudStartFn(){ if(hudRun) { hudRun=false; cancelAnimationFrame(hudRAF); hudRAF=null; hudStart.textContent="Bắt đầu"; return; } hudRun=true; hudLast=performance.now(); hudStart.textContent="Tạm dừng"; cancelAnimationFrame(hudRAF); hudRAF=requestAnimationFrame(hudLoop); }
+  function hudResetFn(){ hudRun=false; cancelAnimationFrame(hudRAF); hudRAF=null; hudElapsed=0; hudStart.textContent="Bắt đầu"; hudRender(); }
+  hudStart.onclick=hudStartFn; hudReset.onclick=hudResetFn; hudRender();
+
+  /* ========== WINNER POPUP + CONFETTI ========== */
+  const winModal=$("winModal"), winTitle=$("winTitle"), winScore=$("winScore"), winOk=$("winOk"), winReset=$("winReset");
+  const fx=document.getElementById("fx"); const ctx=fx.getContext("2d");
+  function sizeFx(){ fx.width=innerWidth; fx.height=innerHeight; } sizeFx(); addEventListener("resize",sizeFx);
+  function confetti(){ const dots=[]; for(let i=0;i<220;i++){ dots.push({x:Math.random()*fx.width,y:-10,vy:1+Math.random()*3,vx:(Math.random()-.5)*1.5,s:2+Math.random()*3,c:`hsl(${Math.random()*360},80%,60%)`});}
+    let t=0; (function step(){ ctx.clearRect(0,0,fx.width,fx.height); dots.forEach(p=>{ p.vy+=0.02; p.x+=p.vx; p.y+=p.vy; ctx.fillStyle=p.c; ctx.fillRect(p.x,p.y,p.s,p.s); }); if(t++<220) requestAnimationFrame(step); })(); }
+  function showWin(winner){ winTitle.textContent=`${winner} WIN`; winScore.textContent=`${scoreL.textContent} – ${scoreR.textContent}`; winModal.classList.add("show"); confetti(); }
+  function hideWin(){ winModal.classList.remove("show"); ctx.clearRect(0,0,fx.width,fx.height); }
+  winOk.onclick=hideWin; winReset.onclick=()=>{ hideWin(); setTxt(scoreL,0); setTxt(scoreR,0); };
+
+  function checkWinner(){
+    const target=toInt(raceTo.textContent), l=toInt(scoreL.textContent), r=toInt(scoreR.textContent);
+    if(target>0 && (l>=target || r>=target)){
+      const nameL=document.getElementById("nameL").textContent.trim()||"PLAYER 1";
+      const nameR=document.getElementById("nameR").textContent.trim()||"PLAYER 2";
+      const winner=(l>=target && l>r)?nameL:(r>=target && r>l)?nameR:null;
+      if(winner) showWin(winner.toUpperCase());
+    }
+  }
+
+  /* ========== TIME-UP SIGNAL (timer giữa) ========== */
+  function timeUpSignal(){ try{ new Audio('data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAESsAACJWAAACABYAAAABAAACaW5mbyBiaXAAAQAA//uQZAAA').play(); }catch(_){ } try{ navigator.vibrate && navigator.vibrate([220,120,220]); }catch(_){ } }
+
+  /* ========== PHÍM TẮT ========== */
+  addEventListener("keydown",(e)=>{
+    if(e.target && e.target.isContentEditable) return;
+    const k=e.key.toLowerCase();
+    if(k==="a") $("plusL").click();
+    if(k==="z") $("minusL").click();
+    if(k==="k") $("plusR").click();
+    if(k==="m") $("minusR").click();
+    if(k==="[") $("minusRace").click();
+    if(k==="]") $("plusRace").click();
+    if(k==="f") $("fs").click();
+    if(k==="r") $("resetAll").click();
+    if(k==="t") (running?stop():start());
+  });
+
+  // Khởi tạo hiển thị timer giữa
+  (function(){ /* load preset state */ const a=localStorage.getItem("sb-preset-active")||"p1"; if(a==="p2") preset2.classList.add("active"); else preset1.classList.add("active"); render(); })();
+})();
+</script>
+</body>
+</html>
